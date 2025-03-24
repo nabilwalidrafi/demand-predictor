@@ -10,13 +10,12 @@ st.write("This app predicts the monthly maximum electricity demand for the year 
 
 # === Define the data ===
 data = {
-    'Year': [2022]*12 + [2023]*12 + [2024]*12 + [2025]*12,
-    'Month': list(range(1, 13)) * 4,
+    'Year': [2022]*12 + [2023]*12 + [2024]*12,
+    'Month': list(range(1, 13)) * 3,
     'Demand': [
         595, 699, 1110, 1090, 1110, 1143, 1081, 1131, 1108, 1082, 958, 779,
         735, 852, 970, 1291, 1280, 1283, 1308, 1293, 1284, 1284, 1028, 846,
         748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893,
-        748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893
     ]
 }
 df = pd.DataFrame(data)
@@ -39,16 +38,16 @@ y = month_data['Demand'].values
 model = LinearRegression()
 model.fit(X, y)
 
-# === Predict demand for 2026 ===
-predicted_demand = model.predict([[2026]])[0]
+# === Predict demand for 2025 ===
+predicted_demand = model.predict([[2025]])[0]
 
 # === Display the prediction ===
-st.success(f"Predicted Maximum Demand for {selected_month} 2026: **{predicted_demand:.2f} MW**")
+st.success(f"Predicted Maximum Demand for {selected_month} 2025: **{predicted_demand:.2f} MW**")
 
 # === Visualization ===
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.plot(X, y, marker='o', color='blue', linestyle='--', label=f"{selected_month} Demand")
-ax.scatter(2026, predicted_demand, color='red', s=100, label='Prediction (2026)')
+ax.scatter(2025, predicted_demand, color='red', s=100, label='Prediction (2025)')
 ax.set_xlabel("Year")
 ax.set_ylabel("Maximum Demand (MW)")
 ax.legend()
