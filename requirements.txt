@@ -3,6 +3,3 @@ pandas
 numpy
 scikit-learn
 matplotlib
-xgboost
-statsmodels
-tensorflow
