@@ -5,8 +5,8 @@ from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 
 # === Title and Description ===
-st.title("Monthly Demand Prediction for 2026")
-st.write("This app predicts the monthly maximum electricity demand for the year 2026 based on past data.")
+st.title("Monthly Demand Prediction for 2025")
+st.write("This app predicts the monthly maximum electricity demand for the year 2025 based on past data.")
 
 # === Define the data ===
 data = {
