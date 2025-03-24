@@ -2,99 +2,82 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.ensemble import RandomForestRegressor
-import xgboost as xgb
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 import matplotlib.pyplot as plt
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
 
-# === Data Setup ===
+# === Title and Description ===
+st.title("Monthly Demand Prediction for 2025")
+st.write("This app predicts the monthly maximum electricity demand for the year 2025 based on past data using Exponential Smoothing (Holt-Winters).")
+
+# === Define the data ===
 data = {
-    'Year': [2022]*12 + [2023]*12 + [2024]*12 + [2025]*12,
-    'Month': list(range(1, 13)) * 4,
+    'Year': [2022] * 12 + [2023] * 12 + [2024] * 12,
+    'Month': list(range(1, 13)) * 3,
     'Demand': [
         595, 699, 1110, 1090, 1110, 1143, 1081, 1131, 1108, 1082, 958, 779,
         735, 852, 970, 1291, 1280, 1283, 1308, 1293, 1284, 1284, 1028, 846,
         748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893,
-        748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893
     ]
 }
 df = pd.DataFrame(data)
 
-# === Train/Test Split ===
-train_df = df[df['Year'] < 2025]
-X_train = train_df[['Year', 'Month']]
-y_train = train_df['Demand']
+# === Sidebar for user selection ===
+month_names = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+]
+selected_month = st.selectbox("Select a month to predict", month_names)
 
-# === Define models ===
-models = {
-    "Linear Regression": LinearRegression(),
-    "Polynomial Regression (Degree 2)": PolynomialFeatures(degree=2),
-    "Random Forest": RandomForestRegressor(n_estimators=100, random_state=42),
-    "XGBoost": xgb.XGBRegressor(objective='reg:squarederror', n_estimators=100)
-}
+# === Get corresponding month index ===
+month_index = month_names.index(selected_month) + 1
 
-# === Predictions Storage ===
-predictions = {}
+# === Prepare data for Holt-Winters ===
+month_data = df[df['Month'] == month_index]['Demand'].values
 
-# === Train and Predict ===
-for name, model in models.items():
-    if name == "Polynomial Regression (Degree 2)":
-        poly_features = PolynomialFeatures(degree=2)
-        X_poly = poly_features.fit_transform(X_train)
-        poly_model = LinearRegression()
-        poly_model.fit(X_poly, y_train)
-        X_test_poly = poly_features.transform(df[df['Year'] == 2025][['Year', 'Month']])
-        predictions[name] = poly_model.predict(X_test_poly)
-    else:
-        model.fit(X_train, y_train)
-        predictions[name] = model.predict(df[df['Year'] == 2025][['Year', 'Month']])
+# === Train Holt-Winters model ===
+hw_model = ExponentialSmoothing(month_data, seasonal_periods=3, trend='add', seasonal='add').fit()
 
-# === LSTM Model Setup ===
-lstm_model = Sequential()
-lstm_model.add(LSTM(50, activation='relu', input_shape=(1, 2)))
-lstm_model.add(Dense(1))
-lstm_model.compile(optimizer='adam', loss='mse')
+# === Predict demand for 2025 ===
+predicted_demand = hw_model.forecast(1)[0]
 
-# Prepare data for LSTM
-X_lstm = np.array(X_train).reshape((X_train.shape[0], 1, X_train.shape[1]))
-y_lstm = np.array(y_train)
+# === Real values for 2025 ===
+real_values_2025 = [
+    748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893
+]
 
-lstm_model.fit(X_lstm, y_lstm, epochs=100, verbose=0)
-X_test_lstm = np.array(df[df['Year'] == 2025][['Year', 'Month']]).reshape((12, 1, 2))
-predictions['LSTM'] = lstm_model.predict(X_test_lstm).flatten()
+# === Display the prediction ===
+st.success(f"Predicted Maximum Demand for {selected_month} 2025: **{predicted_demand:.2f} MW**")
 
-# === Prophet / Exponential Smoothing ===
-hw_model = ExponentialSmoothing(y_train, seasonal='add', seasonal_periods=12).fit()
-predictions['Holt-Winters'] = hw_model.forecast(12)
-
-# === Performance Metrics ===
-real_values = df[df['Year'] == 2025]['Demand'].values
-st.write("### Performance Metrics")
-
-for name, pred in predictions.items():
-    mae = mean_absolute_error(real_values, pred)
-    rmse = np.sqrt(mean_squared_error(real_values, pred))
-    st.write(f"{name} - MAE: {mae:.2f}, RMSE: {rmse:.2f}")
-
-# === Visualization ===
-fig, ax = plt.subplots(figsize=(10, 6))
-months = list(range(1, 13))
-
-ax.plot(months, real_values, color='green', marker='o', linewidth=2, label='Real Demand')
-
-for name, pred in predictions.items():
-    ax.plot(months, pred, linestyle='--', marker='o', label=f'Predicted ({name})')
-
-ax.set_xlabel("Month")
+# === Visualization for selected month ===
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.plot(df[df['Month'] == month_index]['Year'], df[df['Month'] == month_index]['Demand'], marker='o', color='blue', linestyle='--', label=f"{selected_month} Demand")
+ax.scatter(2025, predicted_demand, color='red', s=100, label='Prediction (2025)')
+ax.scatter(2025, real_values_2025[month_index - 1], color='green', marker='x', s=100, label='Real Value (2025)')
+ax.set_xlabel("Year")
 ax.set_ylabel("Maximum Demand (MW)")
-ax.set_title("Real vs Predicted Demand for 2025")
 ax.legend()
 ax.grid(True)
 st.pyplot(fig)
+
+# === Full-year comparison graph using Holt-Winters ===
+months_range = np.array(list(range(1, 13))).reshape(-1, 1)
+predicted_full_year = []
+
+for month in range(1, 13):
+    month_data_all = df[df['Month'] == month]['Demand'].values
+    hw_model_all = ExponentialSmoothing(month_data_all, seasonal_periods=3, trend='add', seasonal='add').fit()
+    predicted_full_year.append(hw_model_all.forecast(1)[0])
+
+fig2, ax2 = plt.subplots(figsize=(10, 5))
+ax2.plot(months_range, predicted_full_year, color='red', marker='o', linestyle='-', linewidth=2, label='Predicted 2025')
+ax2.plot(months_range, real_values_2025, color='green', marker='x', linestyle='-', linewidth=2, label='Real 2025')
+ax2.set_xticks(months_range.flatten())
+ax2.set_xticklabels(month_names)
+ax2.set_xlabel("Month")
+ax2.set_ylabel("Maximum Demand (MW)")
+ax2.legend()
+ax2.grid(True)
+st.pyplot(fig2)
 
 # === Show full dataset ===
 if st.checkbox("Show full dataset"):
