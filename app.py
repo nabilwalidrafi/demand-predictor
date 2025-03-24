@@ -20,6 +20,11 @@ data = {
 }
 df = pd.DataFrame(data)
 
+# === 2025 Actual Values ===
+real_2025 = [
+    748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893
+]
+
 # === Sidebar for user selection ===
 month_names = [
     "January", "February", "March", "April", "May", "June",
@@ -41,13 +46,18 @@ model.fit(X, y)
 # === Predict demand for 2025 ===
 predicted_demand = model.predict([[2025]])[0]
 
-# === Display the prediction ===
+# === Get the real 2025 value for the selected month ===
+real_value_2025 = real_2025[month_index - 1]
+
+# === Display the prediction and real value ===
 st.success(f"Predicted Maximum Demand for {selected_month} 2025: **{predicted_demand:.2f} MW**")
+st.info(f"Real Maximum Demand for {selected_month} 2025: **{real_value_2025} MW**")
 
 # === Visualization ===
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.plot(X, y, marker='o', color='blue', linestyle='--', label=f"{selected_month} Demand")
 ax.scatter(2025, predicted_demand, color='red', s=100, label='Prediction (2025)')
+ax.scatter(2025, real_value_2025, color='green', s=100, label='Real Value (2025)', marker='X')
 ax.set_xlabel("Year")
 ax.set_ylabel("Maximum Demand (MW)")
 ax.legend()
