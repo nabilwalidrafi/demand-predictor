@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
+import matplotlib.pyplot as plt
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
 # === Title and Description ===
@@ -39,13 +39,12 @@ y = month_data['Demand'].values
 model = LinearRegression()
 model.fit(X, y)
 
-# === Holt-Winters Exponential Smoothing Model ===
-hw_model = ExponentialSmoothing(y, seasonal='add', seasonal_periods=12).fit()
-hw_predicted_demand = hw_model.forecast(12)
-
-# === Predict demand for 2025 using linear regression and Holt-Winters ===
+# === Predict demand for 2025 using Linear Regression ===
 predicted_demand_lr = model.predict([[2025]])[0]
-predicted_demand_hw = hw_predicted_demand[month_index - 1]
+
+# === Holt-Winters Exponential Smoothing ===
+hw_model = ExponentialSmoothing(y, seasonal='add', seasonal_periods=3).fit()
+predicted_demand_hw = hw_model.forecast(1)[0]
 
 # === Real values for 2025 ===
 real_values_2025 = [
@@ -59,8 +58,8 @@ st.success(f"Predicted Maximum Demand for {selected_month} 2025 (Holt-Winters): 
 # === Visualization for selected month ===
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.plot(X, y, marker='o', color='blue', linestyle='--', label=f"{selected_month} Demand")
-ax.scatter(2025, predicted_demand_lr, color='red', s=100, label='Prediction (2025 - LR)')
-ax.scatter(2025, predicted_demand_hw, color='orange', s=100, label='Prediction (2025 - Holt-Winters)')
+ax.scatter(2025, predicted_demand_lr, color='red', s=100, label='Prediction (LR)')
+ax.scatter(2025, predicted_demand_hw, color='orange', s=100, label='Prediction (Holt-Winters)')
 ax.scatter(2025, real_values_2025[month_index - 1], color='green', marker='x', s=100, label='Real Value (2025)')
 ax.set_xlabel("Year")
 ax.set_ylabel("Maximum Demand (MW)")
@@ -81,8 +80,8 @@ for month in range(1, 13):
     model_month.fit(X_month, y_month)
     predicted_full_year_lr.append(model_month.predict([[2025]])[0])
 
-    # Holt-Winters Forecast for Full Year
-    predicted_full_year_hw.append(hw_model.forecast(12)[month - 1])
+    hw_model_month = ExponentialSmoothing(y_month, seasonal='add', seasonal_periods=3).fit()
+    predicted_full_year_hw.append(hw_model_month.forecast(1)[0])
 
 fig2, ax2 = plt.subplots(figsize=(10, 5))
 ax2.plot(months_range, predicted_full_year_lr, color='red', marker='o', linestyle='-', linewidth=2, label='Predicted 2025 (LR)')
