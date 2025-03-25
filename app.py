@@ -31,26 +31,26 @@ selected_month = st.selectbox("Select a month to predict", month_names)
 # === Get corresponding month index ===
 month_index = month_names.index(selected_month) + 1
 
-# === Train a separate model for the selected month ===
-month_data = df[df['Month'] == month_index]
-X = month_data['Year'].values.reshape(-1, 1)
-y = month_data['Demand'].values
-
-
 # === Train/Test Split ===
 train_df = df[df['Year'] < 2025]
 X_train = train_df[['Year', 'Month']]
 y_train = train_df['Demand']
 
+# === Train a separate model for the selected month ===
+month_data = df[df['Month'] == month_index]
+X = month_data['Year'].values.reshape(-1, 1)
+y = month_data['Demand'].values
 
+# === Linear Regression ===
 model = LinearRegression()
 model.fit(X, y)
 
 # === Predict demand for 2025 using Linear Regression ===
 predicted_demand_lr = model.predict([[2025]])[0]
 
-# === Holt-Winters Exponential Smoothing (Fixed) ===
-hw_model = ExponentialSmoothing(y_train, seasonal='add', seasonal_periods=12).fit()
+# === Holt-Winters Exponential Smoothing (Corrected) ===
+month_data_for_hw = df[df['Month'] == month_index]
+hw_model = ExponentialSmoothing(month_data_for_hw['Demand'], seasonal='add', seasonal_periods=12).fit()
 predicted_demand_hw = hw_model.forecast(1)[0]
 
 # === Real values for 2025 ===
