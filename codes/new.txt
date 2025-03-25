@@ -1,0 +1,59 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+import matplotlib.pyplot as plt
+
+# === Title and Description ===
+st.title("Monthly Demand Prediction for 2026")
+st.write("This app predicts the monthly maximum electricity demand for the year 2026 based on past data.")
+
+# === Define the data ===
+data = {
+    'Year': [2022]*12 + [2023]*12 + [2024]*12,
+    'Month': list(range(1, 13)) * 3,
+    'Demand': [
+        595, 699, 1110, 1090, 1110, 1143, 1081, 1131, 1108, 1082, 958, 779,
+        735, 852, 970, 1291, 1280, 1283, 1308, 1293, 1284, 1284, 1028, 846,
+        748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893,
+    ]
+}
+df = pd.DataFrame(data)
+
+# === Sidebar for user selection ===
+month_names = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+]
+selected_month = st.selectbox("Select a month to predict", month_names)
+
+# === Get corresponding month index ===
+month_index = month_names.index(selected_month) + 1
+
+# === Train a separate model for the selected month ===
+month_data = df[df['Month'] == month_index]
+X = month_data['Year'].values.reshape(-1, 1)
+y = month_data['Demand'].values
+
+model = LinearRegression()
+model.fit(X, y)
+
+# === Predict demand for 2026 ===
+predicted_demand = model.predict([[2025]])[0]
+
+# === Display the prediction ===
+st.success(f"Predicted Maximum Demand for {selected_month} 2025: **{predicted_demand:.2f} MW**")
+
+# === Visualization ===
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.plot(X, y, marker='o', color='blue', linestyle='--', label=f"{selected_month} Demand")
+ax.scatter(2026, predicted_demand, color='red', s=100, label='Prediction (2026)')
+ax.set_xlabel("Year")
+ax.set_ylabel("Maximum Demand (MW)")
+ax.legend()
+ax.grid(True)
+st.pyplot(fig)
+
+# === Show full dataset ===
+if st.checkbox("Show full dataset"):
+    st.write(df)
