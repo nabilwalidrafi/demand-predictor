@@ -43,7 +43,7 @@ model.fit(X, y)
 predicted_demand_lr = model.predict([[2025]])[0]
 
 # === Holt-Winters Exponential Smoothing (Fixed) ===
-hw_model = ExponentialSmoothing(y, trend='add', seasonal='add', seasonal_periods=3).fit()
+hw_model = ExponentialSmoothing(y, trend='add', seasonal='add', seasonal_periods=12).fit()
 predicted_demand_hw = hw_model.forecast(1)[0]
 
 # === Real values for 2025 ===
