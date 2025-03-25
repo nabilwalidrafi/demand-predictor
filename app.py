@@ -80,7 +80,7 @@ for month in range(1, 13):
     model_month.fit(X_month, y_month)
     predicted_full_year_lr.append(model_month.predict([[2025]])[0])
 
-    hw_model_month = ExponentialSmoothing(y_month, trend='add', seasonal='add', seasonal_periods=3).fit()
+    hw_model_month = ExponentialSmoothing(y_month, trend='add', seasonal='add', seasonal_periods=12).fit()
     predicted_full_year_hw.append(hw_model_month.forecast(1)[0])
 
 fig2, ax2 = plt.subplots(figsize=(10, 5))
