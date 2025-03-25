@@ -36,6 +36,13 @@ month_data = df[df['Month'] == month_index]
 X = month_data['Year'].values.reshape(-1, 1)
 y = month_data['Demand'].values
 
+
+# === Train/Test Split ===
+train_df = df[df['Year'] < 2025]
+X_train = train_df[['Year', 'Month']]
+y_train = train_df['Demand']
+
+
 model = LinearRegression()
 model.fit(X, y)
 
@@ -43,7 +50,7 @@ model.fit(X, y)
 predicted_demand_lr = model.predict([[2025]])[0]
 
 # === Holt-Winters Exponential Smoothing (Fixed) ===
-hw_model = ExponentialSmoothing(y, trend='add', seasonal='add', seasonal_periods=12).fit()
+hw_model = ExponentialSmoothing(y_train, seasonal='add', seasonal_periods=12).fit()
 predicted_demand_hw = hw_model.forecast(1)[0]
 
 # === Real values for 2025 ===
