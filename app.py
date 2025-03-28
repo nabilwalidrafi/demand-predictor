@@ -44,9 +44,8 @@ selected_month = st.selectbox("Select a month to predict", month_names)
 month_index = month_names.index(selected_month) + 1
 
 # === Extract training data ===
-month_data = df[df['Month'] == month_index]
-X_train = np.array(X_scaled[df['Month'] == month_index]).reshape(-1, 1, 4)
-y_train = np.array(y_scaled[df['Month'] == month_index])
+X_train = np.array(X_scaled).reshape(-1, 1, 4)
+y_train = np.array(y_scaled)
 
 # === LSTM Model ===
 lstm_model = Sequential([
@@ -67,25 +66,25 @@ reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=10, verbose=1
 # === Train the LSTM ===
 lstm_model.fit(X_train, y_train, epochs=500, verbose=0, callbacks=[early_stopping, reduce_lr])
 
-# === Prediction for 2025 ===
-input_data = np.array([[2025, np.sin(2*np.pi*month_index/12), np.cos(2*np.pi*month_index/12), month_data.iloc[-1]['Demand']]])
-input_scaled = scaler_x.transform(input_data).reshape(1, 1, 4)
-predicted_demand_scaled = lstm_model.predict(input_scaled)[0][0]
-predicted_demand_lstm = scaler_y.inverse_transform([[predicted_demand_scaled]])[0][0]
+# === Predict Demand for 2025 (All Months at Once) ===
+predicted_full_year_lstm = []
+for month in range(1, 13):
+    input_data = np.array([[2025, np.sin(2*np.pi*month/12), np.cos(2*np.pi*month/12), df[df['Month'] == month].iloc[-1]['Demand']]])
+    input_scaled = scaler_x.transform(input_data).reshape(1, 1, 4)
+    predicted_scaled = lstm_model.predict(input_scaled)[0][0]
+    predicted_full_year_lstm.append(scaler_y.inverse_transform([[predicted_scaled]])[0][0])
 
 # === Real values for 2025 ===
-real_values_2025 = [
-    748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893
-]
+real_values_2025 = [748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893]
 
-# === Display predictions ===
-st.success(f"Optimized LSTM Prediction for {selected_month} 2025: **{predicted_demand_lstm:.2f} MW**")
+# === Display Prediction for Selected Month ===
+st.success(f"Optimized LSTM Prediction for {selected_month} 2025: **{predicted_full_year_lstm[month_index - 1]:.2f} MW**")
 st.success(f"Actual Demand for {selected_month} 2025: **{real_values_2025[month_index - 1]} MW**")
 
-# === Visualization for Selected Month ===
+# === First Graph: Selected Month Prediction ===
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.plot(df[df['Month'] == month_index]['Year'], df[df['Month'] == month_index]['Demand'], marker='o', color='blue', linestyle='--', label=f"{selected_month} Demand")
-ax.scatter(2025, predicted_demand_lstm, color='purple', s=100, marker='s', label='Optimized LSTM Prediction (2025)')
+ax.scatter(2025, predicted_full_year_lstm[month_index - 1], color='purple', s=100, marker='s', label='Optimized LSTM Prediction (2025)')
 ax.scatter(2025, real_values_2025[month_index - 1], color='green', marker='x', s=100, label='Real Value (2025)')
 ax.set_xlabel("Year")
 ax.set_ylabel("Maximum Demand (MW)")
@@ -94,15 +93,6 @@ ax.grid(True)
 st.pyplot(fig)
 
 # === Second Graph: Full Year LSTM Predictions ===
-predicted_full_year_lstm = []
-
-for month in range(1, 13):
-    input_data = np.array([[2025, np.sin(2*np.pi*month/12), np.cos(2*np.pi*month/12), df[df['Month'] == month].iloc[-1]['Demand']]])
-    input_scaled = scaler_x.transform(input_data).reshape(1, 1, 4)
-    predicted_scaled = lstm_model.predict(input_scaled)[0][0]
-    predicted_full_year_lstm.append(scaler_y.inverse_transform([[predicted_scaled]])[0][0])
-
-# === Plot full-year LSTM points ===
 fig2, ax2 = plt.subplots(figsize=(10, 5))
 ax2.plot(range(1, 13), predicted_full_year_lstm, color='purple', marker='s', linestyle='-', linewidth=2, label='Optimized LSTM Prediction 2025')
 ax2.plot(range(1, 13), real_values_2025, color='green', marker='x', linestyle='-', linewidth=2, label='Real 2025')
