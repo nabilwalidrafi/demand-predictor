@@ -65,7 +65,7 @@ st.success(f"Linear Regression Prediction for {selected_month} 2025: **{predicte
 st.success(f"LSTM Prediction for {selected_month} 2025: **{predicted_demand_lstm:.2f} MW**")
 st.success(f"Actual Demand for {selected_month} 2025: **{real_values_2025[month_index - 1]} MW**")
 
-# === Visualization ===
+# === Visualization for selected month ===
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.plot(X, y, marker='o', color='blue', linestyle='--', label=f"{selected_month} Demand")
 ax.scatter(2025, predicted_demand_lin, color='red', s=100, label='Linear Prediction (2025)')
@@ -76,3 +76,41 @@ ax.set_ylabel("Maximum Demand (MW)")
 ax.legend()
 ax.grid(True)
 st.pyplot(fig)
+
+# === Full-year comparison graph ===
+predicted_full_year_lin = []
+predicted_full_year_lstm = []
+
+for month in range(1, 13):
+    month_data = df[df['Month'] == month]
+    X_month = month_data['Year'].values.reshape(-1, 1)
+    y_month = month_data['Demand'].values
+    
+    model_month = LinearRegression()
+    model_month.fit(X_month, y_month)
+    predicted_full_year_lin.append(model_month.predict([[2025]])[0])
+    
+    X_train_month = np.array(month_data['Year']).reshape(-1, 1, 1)
+    y_train_month = np.array(month_data['Demand'])
+    
+    lstm_model_month = Sequential([
+        LSTM(50, activation='relu', return_sequences=True, input_shape=(1, 1)),
+        LSTM(50, activation='relu'),
+        Dense(1)
+    ])
+    
+    lstm_model_month.compile(optimizer='adam', loss='mse')
+    lstm_model_month.fit(X_train_month, y_train_month, epochs=200, verbose=0)
+    predicted_full_year_lstm.append(lstm_model_month.predict(np.array([[[2025]]]))[0][0])
+
+fig2, ax2 = plt.subplots(figsize=(10, 5))
+ax2.plot(range(1, 13), predicted_full_year_lin, color='red', marker='o', linestyle='-', linewidth=2, label='Linear Prediction 2025')
+ax2.plot(range(1, 13), predicted_full_year_lstm, color='purple', marker='s', linestyle='-', linewidth=2, label='LSTM Prediction 2025')
+ax2.plot(range(1, 13), real_values_2025, color='green', marker='x', linestyle='-', linewidth=2, label='Real 2025')
+ax2.set_xticks(range(1, 13))
+ax2.set_xticklabels(month_names, rotation=45)
+ax2.set_xlabel("Month")
+ax2.set_ylabel("Maximum Demand (MW)")
+ax2.legend()
+ax2.grid(True)
+st.pyplot(fig2)
