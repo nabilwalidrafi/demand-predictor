@@ -3,13 +3,14 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, GRU, Dense, Dropout, Bidirectional
+from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
+from scipy.interpolate import CubicSpline
 
-# === Title and Description ===
+# === Title ===
 st.title("Monthly Demand Prediction for 2025")
-st.write("Optimized LSTM model for electricity demand prediction.")
+st.write("Optimized LSTM model with synthetic interpolation for electricity demand prediction.")
 
 # === Define the data ===
 data = {
@@ -23,9 +24,15 @@ data = {
 }
 df = pd.DataFrame(data)
 
+# === Interpolation for smoother trend ===
+x = np.arange(len(df))  # Convert time to sequential index
+y = df['Demand'].values
+spline = CubicSpline(x, y)
+df['Demand_Smoothed'] = spline(x)
+
 # === Normalization ===
 scaler = MinMaxScaler()
-df['Demand_Scaled'] = scaler.fit_transform(df[['Demand']])
+df['Demand_Scaled'] = scaler.fit_transform(df[['Demand_Smoothed']])
 
 # === Sidebar for user selection ===
 month_names = [
@@ -35,13 +42,12 @@ month_names = [
 selected_month = st.selectbox("Select a month to predict", month_names)
 month_index = month_names.index(selected_month) + 1
 
-# === Train an optimized LSTM model ===
-month_data = df[df['Month'] == month_index]
-X_train = np.array(month_data['Year']).reshape(-1, 1, 1)
-y_train = np.array(month_data['Demand_Scaled'])
+# === Train LSTM model on full dataset ===
+X_train = df[['Year', 'Month']].values.reshape(-1, 1, 2)
+y_train = df['Demand_Scaled'].values
 
 lstm_model = Sequential([
-    Bidirectional(LSTM(100, activation='tanh', return_sequences=True, input_shape=(1, 1))),
+    Bidirectional(LSTM(100, activation='tanh', return_sequences=True, input_shape=(1, 2))),
     Dropout(0.2),
     LSTM(100, activation='tanh'),
     Dropout(0.2),
@@ -51,44 +57,23 @@ lstm_model = Sequential([
 lstm_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss='mse')
 lstm_model.fit(X_train, y_train, epochs=300, verbose=0)
 
-# === Prediction ===
-predicted_scaled_lstm = lstm_model.predict(np.array([[[2025]]]))[0][0]
-predicted_demand_lstm = scaler.inverse_transform([[predicted_scaled_lstm]])[0][0]
-
-# === Display predictions ===
-st.success(f"LSTM Prediction for {selected_month} 2025: **{predicted_demand_lstm:.2f} MW**")
-
-# === Full-year comparison graph ===
+# === Prediction for full year 2025 ===
 predicted_full_year_lstm = []
-
 for month in range(1, 13):
-    month_data = df[df['Month'] == month]
-    X_train_month = np.array(month_data['Year']).reshape(-1, 1, 1)
-    y_train_month = np.array(month_data['Demand_Scaled'])
-    
-    lstm_model_month = Sequential([
-        Bidirectional(LSTM(100, activation='tanh', return_sequences=True, input_shape=(1, 1))),
-        Dropout(0.2),
-        LSTM(100, activation='tanh'),
-        Dropout(0.2),
-        Dense(1)
-    ])
-    
-    lstm_model_month.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss='mse')
-    lstm_model_month.fit(X_train_month, y_train_month, epochs=300, verbose=0)
-    
-    predicted_scaled = lstm_model_month.predict(np.array([[[2025]]]))[0][0]
+    predicted_scaled = lstm_model.predict(np.array([[[2025, month]]]))[0][0]
     predicted_full_year_lstm.append(scaler.inverse_transform([[predicted_scaled]])[0][0])
 
-# === Plotting the results ===
+# === Real values for comparison ===
 real_values_2025 = [748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893]
-fig2, ax2 = plt.subplots(figsize=(10, 5))
-ax2.plot(range(1, 13), predicted_full_year_lstm, color='purple', marker='s', linestyle='-', linewidth=2, label='Optimized LSTM Prediction 2025')
-ax2.plot(range(1, 13), real_values_2025, color='green', marker='x', linestyle='-', linewidth=2, label='Real 2025')
-ax2.set_xticks(range(1, 13))
-ax2.set_xticklabels(month_names, rotation=45)
-ax2.set_xlabel("Month")
-ax2.set_ylabel("Maximum Demand (MW)")
-ax2.legend()
-ax2.grid(True)
-st.pyplot(fig2)
+
+# === Plot results ===
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(range(1, 13), predicted_full_year_lstm, color='purple', marker='s', linestyle='-', linewidth=2, label='Optimized LSTM Prediction 2025')
+ax.plot(range(1, 13), real_values_2025, color='green', marker='x', linestyle='-', linewidth=2, label='Real 2025')
+ax.set_xticks(range(1, 13))
+ax.set_xticklabels(month_names, rotation=45)
+ax.set_xlabel("Month")
+ax.set_ylabel("Maximum Demand (MW)")
+ax.legend()
+ax.grid(True)
+st.pyplot(fig)
