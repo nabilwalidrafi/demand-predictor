@@ -73,6 +73,10 @@ for month in range(1, 13):
 real_values_2025 = [
     748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893
 ]
+month_names = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+]
 
 # === Comparison Graph ===
 fig2, ax2 = plt.subplots(figsize=(10, 5))
