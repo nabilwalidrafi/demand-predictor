@@ -3,14 +3,14 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.layers import LSTM, GRU, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
 # === Title and Description ===
 st.title("Optimized Monthly Demand Prediction for 2025")
-st.write("Enhanced LSTM model for accurate electricity demand forecasting.")
+st.write("Enhanced LSTM and GRU models for accurate electricity demand forecasting.")
 
 # === Define the data ===
 data = {
@@ -49,6 +49,10 @@ month_index = month_names.index(selected_month) + 1
 X_train = X_scaled.reshape(X_scaled.shape[0], 1, X_scaled.shape[1])
 y_train = np.array(y_scaled)
 
+# === Callbacks ===
+early_stopping = EarlyStopping(monitor='loss', patience=20, restore_best_weights=True)
+reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=10, verbose=1)
+
 # === LSTM Model ===
 lstm_model = Sequential([
     LSTM(128, activation='relu', return_sequences=True, input_shape=(1, 4)),
@@ -58,35 +62,42 @@ lstm_model = Sequential([
     Dense(1, activation='linear')  # Ensure activation is set
 ])
 
-
 lstm_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.006), loss='mse')
-
-# === Callbacks ===
-early_stopping = EarlyStopping(monitor='loss', patience=20, restore_best_weights=True)
-reduce_lr = ReduceLROnPlateau(monitor='loss', factor=0.5, patience=10, verbose=1)
-
-# === Train the LSTM ===
 lstm_model.fit(X_train, y_train, epochs=500, verbose=0, callbacks=[early_stopping, reduce_lr])
 
-# === Predict Demand for 2025 (All Months at Once) ===
+# === GRU Model ===
+gru_model = Sequential([
+    GRU(128, activation='relu', return_sequences=True, input_shape=(1, 4)),
+    Dropout(0.2),
+    GRU(64, activation='relu'),
+    Dropout(0.15),
+    Dense(1, activation='linear')  # Ensure activation is set
+])
+
+gru_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.006), loss='mse')
+gru_model.fit(X_train, y_train, epochs=500, verbose=0, callbacks=[early_stopping, reduce_lr])
+
+# === Predict Demand for 2025 ===
 predicted_full_year_lstm = []
+predicted_full_year_gru = []
 for month in range(1, 13):
     input_data = np.array([[2025, np.sin(2*np.pi*month/12), np.cos(2*np.pi*month/12), df[df['Month'] == month].iloc[-1]['Demand']]])
     input_scaled = scaler_x.transform(input_data).reshape(1, 1, 4)
-    predicted_scaled = lstm_model.predict(input_scaled)[0][0]
-    predicted_full_year_lstm.append(scaler_y.inverse_transform([[predicted_scaled]])[0][0])
+    
+    lstm_predicted_scaled = lstm_model.predict(input_scaled)[0][0]
+    gru_predicted_scaled = gru_model.predict(input_scaled)[0][0]
+    
+    predicted_full_year_lstm.append(scaler_y.inverse_transform([[lstm_predicted_scaled]])[0][0])
+    predicted_full_year_gru.append(scaler_y.inverse_transform([[gru_predicted_scaled]])[0][0])
 
 # === Real values for 2025 ===
 real_values_2025 = [748, 860, 1210, 1519, 1405, 1399, 1276, 1248, 1406, 1265, 1165, 893]
 
-# === Display Prediction for Selected Month ===
-st.success(f"Optimized LSTM Prediction for {selected_month} 2025: **{predicted_full_year_lstm[month_index - 1]:.2f} MW**")
-st.success(f"Actual Demand for {selected_month} 2025: **{real_values_2025[month_index - 1]} MW**")
-
 # === First Graph: Selected Month Prediction ===
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.plot(df[df['Month'] == month_index]['Year'], df[df['Month'] == month_index]['Demand'], marker='o', color='blue', linestyle='--', label=f"{selected_month} Demand")
-ax.scatter(2025, predicted_full_year_lstm[month_index - 1], color='purple', s=100, marker='s', label='Optimized LSTM Prediction (2025)')
+ax.scatter(2025, predicted_full_year_lstm[month_index - 1], color='purple', s=100, marker='s', label='LSTM Prediction (2025)')
+ax.scatter(2025, predicted_full_year_gru[month_index - 1], color='red', s=100, marker='D', label='GRU Prediction (2025)')
 ax.scatter(2025, real_values_2025[month_index - 1], color='green', marker='x', s=100, label='Real Value (2025)')
 ax.set_xlabel("Year")
 ax.set_ylabel("Maximum Demand (MW)")
@@ -94,9 +105,10 @@ ax.legend()
 ax.grid(True)
 st.pyplot(fig)
 
-# === Second Graph: Full Year LSTM Predictions ===
+# === Second Graph: Full Year Predictions ===
 fig2, ax2 = plt.subplots(figsize=(10, 5))
-ax2.plot(range(1, 13), predicted_full_year_lstm, color='purple', marker='s', linestyle='-', linewidth=2, label='Optimized LSTM Prediction 2025')
+ax2.plot(range(1, 13), predicted_full_year_lstm, color='purple', marker='s', linestyle='-', linewidth=2, label='LSTM Prediction 2025')
+ax2.plot(range(1, 13), predicted_full_year_gru, color='red', marker='D', linestyle='-', linewidth=2, label='GRU Prediction 2025')
 ax2.plot(range(1, 13), real_values_2025, color='green', marker='x', linestyle='-', linewidth=2, label='Real 2025')
 ax2.set_xticks(range(1, 13))
 ax2.set_xticklabels(month_names, rotation=45)

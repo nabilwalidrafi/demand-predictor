@@ -25,9 +25,7 @@ data = {
 df = pd.DataFrame(data)
 
 # === Feature Engineering ===
-df['Prev_Demand'] = df.groupby('Month')['Demand'].shift(1)
-df['Prev_Demand'].fillna(method='bfill', inplace=True)
-
+df['Prev_Demand'] = df.groupby('Month')['Demand'].shift(1).fillna(method='bfill')
 df['Month_Sin'] = np.sin(2 * np.pi * df['Month'] / 12)
 df['Month_Cos'] = np.cos(2 * np.pi * df['Month'] / 12)
 
@@ -46,20 +44,20 @@ selected_month = st.selectbox("Select a month to predict", month_names)
 month_index = month_names.index(selected_month) + 1
 
 # === Extract training data ===
-X_train = X_scaled.reshape(X_scaled.shape[0], 1, X_scaled.shape[1])
+X_train = np.array(X_scaled).reshape(-1, 1, 4)
 y_train = np.array(y_scaled)
 
 # === LSTM Model ===
 lstm_model = Sequential([
     LSTM(128, activation='relu', return_sequences=True, input_shape=(1, 4)),
     Dropout(0.2),
-    LSTM(64, activation='relu'),
+    LSTM(64, activation='relu', return_sequences=True),
     Dropout(0.2),
-    Dense(1, activation='linear')  # Ensure activation is set
+    LSTM(32, activation='relu'),
+    Dense(1)
 ])
 
-
-lstm_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.006), loss='mse')
+lstm_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), loss='mse')
 
 # === Callbacks ===
 early_stopping = EarlyStopping(monitor='loss', patience=20, restore_best_weights=True)
